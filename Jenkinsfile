@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'local-jenkins-rashi',
+                    credentialsId: 'git-credentials',
                     url: 'https://github.com/nvssasank/sasank-simple-hello.git'
                 sh 'ls -la'
             }
