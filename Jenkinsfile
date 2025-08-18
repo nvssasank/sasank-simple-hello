@@ -9,12 +9,12 @@ pipeline {
     }
     environment {
         SONARQUBE_URL = 'https://d6312cd2eccd.ngrok-free.app/projects'
-        SONARQUBE_TOKEN = credentials ('local-sonarqube')
+        SONARQUBE_TOKEN = credentials ('MySonarQube')
     }
     stages {
         stage('Checkout'){
             steps{
-                git branch: 'main', credentialsId: 'local-jenkins-rashi', url: 'https://github.com/Rashi3108/MySpringBootApp.git'
+                git branch: 'main', credentialsId: 'local-jenkins-rashi', url: 'https://github.com/nvssasank/sasank-simple-hello.git'
                 sh 'ls -la'
             }
         }
