@@ -1,57 +1,44 @@
 pipeline {
     agent any
-
     environment {
-        DOCKER_IMAGE   = "sasank1219/springboot-app"
-        DOCKER_TAG     = "latest"
+        DOCKER_IMAGE = "sri642/springboot-app-hello:${BUILD_NUMBER}"
+        DOCKER_HUB_CREDS = "Docker-sasank"
         KUBE_NAMESPACE = "sasank"
     }
-
-    tools {
-        maven "maven3"  // Configure this in Jenkins -> Manage Jenkins -> Tools -> Maven
+    tools{
+        maven 'maven3'
     }
-
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/nvssasank/sasank-simple-hello.git'
+                git credentialsId: 'Github_token', url: 'https://github.com/nvssasank/sasank-simple-hello.git', branch: 'main'
             }
         }
-
         stage('Build with Maven') {
             steps {
-                sh "mvn clean package -DskipTests"
+                sh 'mvn clean package'
             }
         }
-
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh "docker build -t $DOCKER_IMAGE:$DOCKER_TAG ."
-                }
+                sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
-
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                    sh "docker push $DOCKER_IMAGE:$DOCKER_TAG"
+                withCredentials([usernamePassword(credentialsId: "$DOCKER_HUB_CREDS", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker push $DOCKER_IMAGE'
                 }
             }
         }
-
         stage('Deploy to EKS') {
             steps {
-                script {
-                    // Assumes you already have kubeconfig set up on Jenkins agent
-                    sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/deployment.yaml"
-                    sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/service.yaml"
-                }
+                sh '''
+                  sed -i "s@<IMAGE_PLACEHOLDER>@$DOCKER_IMAGE@g" k8s/deployment.yaml
+                  kubectl apply -f k8s/namespace.yaml
+                  kubectl apply -n srilatha-namespace -f k8s/deployment.yaml
+                '''
             }
         }
     }
