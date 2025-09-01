@@ -2,9 +2,13 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "sasank1219/springboot-app"
-        DOCKER_TAG = "latest"
+        DOCKER_IMAGE   = "sasank1219/springboot-app"
+        DOCKER_TAG     = "latest"
         KUBE_NAMESPACE = "sasank"
+    }
+
+    tools {
+        maven "maven3"  // Configure this in Jenkins -> Manage Jenkins -> Tools -> Maven
     }
 
     stages {
@@ -16,7 +20,7 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh "mvn clean package -DskipTests"
             }
         }
 
@@ -30,9 +34,11 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                                 usernameVariable: 'DOCKER_USER', 
-                                                 passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     sh "docker push $DOCKER_IMAGE:$DOCKER_TAG"
                 }
@@ -42,7 +48,7 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 script {
-                    // Apply Kubernetes manifests (deployment.yaml + service.yaml)
+                    // Assumes you already have kubeconfig set up on Jenkins agent
                     sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/deployment.yaml"
                     sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/service.yaml"
                 }
