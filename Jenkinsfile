@@ -1,49 +1,51 @@
 pipeline {
     agent any
 
-    triggers {
-        githubPush()
-    }
-
-    tools {
-        maven 'maven3'
+    environment {
+        DOCKER_IMAGE = "sasank1219/springboot-app"
+        DOCKER_TAG = "latest"
+        KUBE_NAMESPACE = "sasank"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                    credentialsId: 'git-credentials',
-                    url: 'https://github.com/nvssasank/sasank-simple-hello.git'
-                sh 'ls -la'
+                git branch: 'main', url: 'https://github.com/nvssasank/sasank-simple-hello.git'
             }
         }
 
-        stage('Build') {
+        stage('Build with Maven') {
             steps {
-                sh 'mvn clean install'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Package') {
+        stage('Build Docker Image') {
             steps {
-                sh 'mvn package'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('MySonarQube') {   // <-- Name must match Jenkins UI config
-                    sh 'mvn sonar:sonar -Dsonar.projectKey=springboot-demo'
+                script {
+                    sh "docker build -t $DOCKER_IMAGE:$DOCKER_TAG ."
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Push Docker Image') {
             steps {
-                sh '''
-                nohup java -jar target/simple-hello-sasank-1.0.0.jar --server.port=9090 > app.log 2>&1 &
-                '''
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
+                                                 usernameVariable: 'DOCKER_USER', 
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                    sh "docker push $DOCKER_IMAGE:$DOCKER_TAG"
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    // Apply Kubernetes manifests (deployment.yaml + service.yaml)
+                    sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/deployment.yaml"
+                    sh "kubectl apply -n $KUBE_NAMESPACE -f k8s/service.yaml"
+                }
             }
         }
     }
