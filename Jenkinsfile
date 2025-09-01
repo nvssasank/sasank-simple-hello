@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE = "sri642/springboot-app-hello:${BUILD_NUMBER}"
+        DOCKER_IMAGE = "sasank1219/springboot-app-hello:${BUILD_NUMBER}"
         DOCKER_HUB_CREDS = "Docker-sasank"
         KUBE_NAMESPACE = "sasank"
     }
